@@ -2,8 +2,22 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Giải mã Hytech</title>
+
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#2b2b2b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Giải mã Hytech" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+
   <style>
     :root {
       --bg: #2b2b2b;
@@ -21,17 +35,46 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
     .app {
       width: min(440px, calc(100% - 2rem));
       margin: 0 auto;
       padding: 2.75rem 0 3rem;
+      padding-top: max(2.75rem, env(safe-area-inset-top));
+      padding-bottom: max(3rem, env(safe-area-inset-bottom));
     }
     h1 {
-      margin: 0 0 1.6rem;
+      margin: 0 0 0.5rem;
       font-size: 1.28rem;
       font-weight: 600;
       text-align: center;
+    }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      margin: 0 0 1.6rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      user-select: none;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #eab308;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .status-dot.ready {
+      background: var(--line);
+      box-shadow: 0 0 6px rgba(62, 207, 142, 0.6);
+    }
+    .status-dot.offline {
+      background: #60a5fa;
+      box-shadow: 0 0 6px rgba(96, 165, 250, 0.6);
     }
     input[type="text"] {
       width: 100%;
@@ -45,6 +88,7 @@
       padding: 0.75rem 0;
       outline: none;
       text-transform: uppercase;
+      border-radius: 0;
     }
     input.invalid { border-bottom-color: var(--err); }
     button {
@@ -60,8 +104,10 @@
       letter-spacing: 0.06em;
       padding: 0.95rem 1rem;
       cursor: pointer;
+      transition: background 0.2s;
     }
     button:hover { background: var(--btn-hover); }
+    button:active { transform: scale(0.99); }
     .msg {
       margin-top: 0.9rem;
       font-size: 0.92rem;
@@ -99,12 +145,20 @@
 <body>
   <div class="app">
     <h1>Giải mã Hytech</h1>
+    <div class="status-bar" id="statusBar">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">Đang chuẩn bị offline...</span>
+    </div>
+
     <input
       id="inHex"
       type="text"
       maxlength="16"
       autocomplete="off"
+      autocorrect="off"
+      autocapitalize="characters"
       spellcheck="false"
+      inputmode="text"
       placeholder=""
     />
     <button type="button" id="btnOk">XÁC NHẬN</button>
@@ -133,7 +187,7 @@
 (function () {
   "use strict";
 
-  /* Tables copied from des.asm — IP, E, P, FP, S-box, exKey (Mr Luan, key="v2y@{3e~") */
+  /* Tables from des.asm (IP/E/P/FP/S) + exKey from hytech.asm (key="hy@teckk") */
   var EXP_D = [32,1,2,3,4,5,4,5,6,7,8,9,8,9,10,11,12,13,12,13,14,15,16,17,16,17,18,19,20,21,20,21,22,23,24,25,24,25,26,27,28,29,28,29,30,31,32,1];
   var IP = [58,50,42,34,26,18,10,2,60,52,44,36,28,20,12,4,62,54,46,38,30,22,14,6,64,56,48,40,32,24,16,8,57,49,41,33,25,17,9,1,59,51,43,35,27,19,11,3,61,53,45,37,29,21,13,5,63,55,47,39,31,23,15,7];
   var P = [16,7,20,21,29,12,28,17,1,15,23,26,5,18,31,10,2,8,24,14,32,27,3,9,19,13,30,6,22,11,4,25];
@@ -148,11 +202,12 @@
     4,11,2,14,15,0,8,13,3,12,9,7,5,10,6,1,13,0,11,7,4,9,1,10,14,3,5,12,2,15,8,6,1,4,11,13,12,3,7,14,10,15,6,8,0,5,9,2,6,11,13,8,1,4,10,7,9,5,0,15,14,2,3,12,
     13,2,8,4,6,15,11,1,10,9,3,14,5,0,12,7,1,15,13,8,10,3,7,4,12,5,6,11,0,14,9,2,7,11,4,1,9,12,14,2,0,6,10,13,15,3,5,8,2,1,14,7,4,10,8,13,15,12,9,0,3,5,6,11
   ];
+  /* hytech.asm — key="hy@teckk" */
   var EXKEY = [
-    [0xE0,0xBC,0x6E,0x81,0x2C,0xB8],[0xD0,0xB6,0xF6,0x81,0x76,0x81],[0xF4,0xD6,0x76,0xBA,0x02,0x21],[0xE6,0xD3,0x66,0x92,0x4B,0x06],
-    [0xAA,0xD3,0x77,0x14,0x23,0x90],[0xAD,0x53,0x7B,0xF1,0x20,0x41],[0xA7,0x53,0xF9,0x62,0xA2,0x0A],[0x9F,0x5B,0xD1,0x34,0x35,0x0E],
-    [0x3F,0x49,0x5B,0x0E,0x15,0x05],[0x2F,0x69,0x9D,0x4A,0x61,0xE0],[0x1F,0x2D,0x9D,0x60,0xC9,0x09],[0x5F,0x2C,0xB9,0xC2,0x14,0x1A],
-    [0xDF,0xAC,0xAC,0xCD,0x13,0x28],[0xDA,0xAE,0x8E,0x10,0x5A,0x68],[0x78,0xBE,0x2E,0x50,0x98,0x34],[0xF1,0xBE,0xA4,0x88,0xC0,0x9C]
+    [0xE0,0x9E,0x66,0x43,0xCB,0x0A],[0xE0,0xB6,0x72,0x04,0x8F,0x4A],[0xE4,0xD6,0x76,0x9C,0x94,0x54],[0xE6,0xD3,0x52,0x49,0xC6,0xE0],
+    [0x2E,0xD3,0x73,0x18,0xEC,0x09],[0xAF,0x51,0x5B,0xAA,0x54,0x14],[0x2F,0x43,0xD9,0x89,0x63,0xA2],[0x1F,0x59,0x99,0xB4,0x4A,0x01],
+    [0x1F,0x49,0xC9,0x33,0x08,0x54],[0x1B,0x69,0x9D,0xC1,0x81,0x96],[0x1D,0x2D,0x8D,0x05,0x26,0x8D],[0x53,0x2C,0xAD,0x7A,0x10,0xC5],
+    [0xD9,0xAC,0xA4,0x02,0xC1,0xAF],[0xD0,0xAE,0xAE,0x06,0x3D,0x81],[0xF0,0xB6,0x26,0xEA,0x01,0x71],[0xF0,0xBE,0x26,0xE7,0xC0,0x62]
   ];
   var EXKEY_DEC = EXKEY.slice().reverse();
   var TEST_P = "766B2D2D6B68696E";
@@ -300,6 +355,64 @@
   inHex.addEventListener("keydown", function (e) {
     if (e.key === "Enter") confirm();
   });
+
+  /* Service Worker & Offline Status Tracking */
+  var statusDot = document.getElementById("statusDot");
+  var statusText = document.getElementById("statusText");
+
+  function updateStatus(isReady) {
+    if (!navigator.onLine) {
+      if (statusDot) statusDot.className = "status-dot offline";
+      if (statusText) statusText.textContent = "Chế độ ngoại tuyến (Offline)";
+    } else if (isReady) {
+      if (statusDot) statusDot.className = "status-dot ready";
+      if (statusText) statusText.textContent = "✓ Sẵn sàng offline";
+    } else {
+      if (statusDot) statusDot.className = "status-dot";
+      if (statusText) statusText.textContent = "Đang chuẩn bị offline...";
+    }
+  }
+
+  window.addEventListener("online", function () {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      updateStatus(true);
+    } else {
+      updateStatus(false);
+    }
+  });
+
+  window.addEventListener("offline", function () {
+    updateStatus(false);
+  });
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js")
+        .then(function (reg) {
+          if (reg.active) {
+            updateStatus(true);
+          }
+          reg.addEventListener("updatefound", function () {
+            var installing = reg.installing;
+            if (installing) {
+              installing.addEventListener("statechange", function () {
+                if (installing.state === "installed" || installing.state === "activated") {
+                  updateStatus(true);
+                }
+              });
+            }
+          });
+          if (navigator.serviceWorker.controller) {
+            updateStatus(true);
+          }
+        })
+        .catch(function () {
+          if (statusText) statusText.textContent = "Không thể lưu offline";
+        });
+    });
+  } else {
+    if (statusText) statusText.textContent = "Trình duyệt không hỗ trợ PWA";
+  }
 })();
   </script>
 </body>
