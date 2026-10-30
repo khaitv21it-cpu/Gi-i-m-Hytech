@@ -374,11 +374,11 @@
     if ("caches" in window) {
       caches.match("./index.html").then(function (res) {
         if (res && res.status === 200) {
-          setStatus("ready", "✓ Sẵn sàng offline 100%");
+          setStatus("ready", "✓ chế độ online");
         } else {
           caches.match("./").then(function (r2) {
             if (r2 && r2.status === 200) {
-              setStatus("ready", "✓ Sẵn sàng offline 100%");
+              setStatus("ready", "✓ chế độ online");
             } else if (navigator.serviceWorker && navigator.serviceWorker.controller) {
               setStatus("ready", "✓ Sẵn sàng offline");
             } else {
